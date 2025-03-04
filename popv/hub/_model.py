@@ -85,7 +85,8 @@ class HubModel:
         elif isinstance(model_card, ModelCard):
             self._model_card = model_card
         elif isinstance(model_card, str) or os.path.isfile(model_card_path):
-            path = model_card if isinstance(model_card, str) else model_card_path
+            path = model_card if isinstance(model_card,
+                                            str) else model_card_path
             content = Path(path).read_text()
             self._model_card = ModelCard(content)
         else:
@@ -101,22 +102,24 @@ class HubModel:
         """
         card_path = os.path.join(self._local_dir, "README.md")
         if os.path.isfile(card_path) and not overwrite:
-            raise FileExistsError(f"Model card already exists at {card_path}. To overwrite, pass `overwrite=True`.")
+            raise FileExistsError(
+                f"Model card already exists at {card_path}. To overwrite, pass `overwrite=True`."
+            )
         self.model_card.save(card_path)
 
-        metadata_path = os.path.join(self._local_dir, "_required_metadata.json")
+        metadata_path = os.path.join(self._local_dir,
+                                     "_required_metadata.json")
         with open(metadata_path, "w") as f:
             json.dump(self.metadata, f, indent=4)
 
-    def annotate_data(
-        self,
-        query_adata: AnnData,
-        query_batch_key: str | None = None,
-        save_path: str = "tmp",
-        prediction_mode: str = "fast",
-        methods: list | None = None,
-        gene_symbols: str | None = None,
-    ) -> AnnData:
+    def annotate_data(self,
+                      query_adata: AnnData,
+                      query_batch_key: str | None = None,
+                      save_path: str = "tmp",
+                      prediction_mode: str = "fast",
+                      methods: list | None = None,
+                      gene_symbols: str | None = None,
+                      weight_likelihood: bool = False) -> AnnData:
         """Annotate the query data with the trained model.
 
         Parameters
@@ -143,7 +146,8 @@ class HubModel:
         setup_dict = self.metadata.setup_dict
         if gene_symbols is not None:
             print("SSSSSS")
-            query_adata = self.map_genes(adata=query_adata, gene_symbols=gene_symbols)
+            query_adata = self.map_genes(adata=query_adata,
+                                         gene_symbols=gene_symbols)
         print("LLLLLL", self.local_dir, os.listdir(self.local_dir))
 
         concatenate_adata = Process_Query(
@@ -161,18 +165,22 @@ class HubModel:
         ).adata
         methods_ = self.metadata.methods
         if prediction_mode == "fast":
-            methods_ = [method for method in methods_ if method in AlgorithmsNT.FAST_ALGORITHMS]
+            methods_ = [
+                method for method in methods_
+                if method in AlgorithmsNT.FAST_ALGORITHMS
+            ]
         if methods is not None:
             if not set(methods).issubset(methods_):
-                ValueError(f"Method {set(methods) - set(methods_)} is not supported. Consider retraining models.")
+                ValueError(
+                    f"Method {set(methods) - set(methods_)} is not supported. Consider retraining models."
+                )
             methods_ = methods
         methods_kwargs = self.metadata.method_kwargs
-        annotate_data(
-            concatenate_adata,
-            save_path=f"{save_path}/popv_output",
-            methods=methods,
-            methods_kwargs=methods_kwargs,
-        )
+        annotate_data(concatenate_adata,
+                      save_path=f"{save_path}/popv_output",
+                      methods=methods,
+                      methods_kwargs=methods_kwargs,
+                      weight_likelihood=weight_likelihood)
 
         return concatenate_adata
 
@@ -232,7 +240,8 @@ class HubModel:
         )
         # upload the metadata
         api.upload_file(
-            path_or_fileobj=json.dumps(asdict(self.metadata), indent=4).encode(),
+            path_or_fileobj=json.dumps(asdict(self.metadata),
+                                       indent=4).encode(),
             path_in_repo="metadata.json",
             repo_id=repo_name,
             token=repo_token,
@@ -309,17 +318,16 @@ class HubModel:
         )
 
     def __repr__(self):
+
         def eval_obj(obj):
             return "No" if obj is None else "Yes"
 
-        print(
-            "HubModel with:\n"
-            f"local_dir: {self._local_dir}\n"
-            f"model loaded? {eval_obj(self._model)}\n"
-            f"adata loaded? {eval_obj(self._adata)}\n"
-            f"metadata:\n{self.metadata}\n"
-            f"model_card:"
-        )
+        print("HubModel with:\n"
+              f"local_dir: {self._local_dir}\n"
+              f"model loaded? {eval_obj(self._model)}\n"
+              f"adata loaded? {eval_obj(self._adata)}\n"
+              f"metadata:\n{self.metadata}\n"
+              f"model_card:")
         rich.print(Markdown(self.model_card.content.replace("\n", "\n\n")))
         return ""
 
@@ -357,7 +365,8 @@ class HubModel:
         """
         if self._adata is None:
             cellxgene_census.download_source_h5ad(
-                dataset_id=self.metadata.cellxgene_url.rsplit("/", 2)[1].rsplit(".")[0],
+                dataset_id=self.metadata.cellxgene_url.rsplit(
+                    "/", 2)[1].rsplit(".")[0],
                 census_version="latest",
                 to_path=self._adata_path,
             )
@@ -382,7 +391,8 @@ class HubModel:
                 census,
                 organism="homo_sapiens",
             )
-            feature_dict = dict(zip(var_df[gene_symbols], var_df["feature_id"], strict=True))
+            feature_dict = dict(
+                zip(var_df[gene_symbols], var_df["feature_id"], strict=True))
         adata.var["old_index"] = adata.var_names
         adata.var_names = adata.var_names.map(feature_dict)
         adata = adata[:, adata.var.index.notna()].copy()
