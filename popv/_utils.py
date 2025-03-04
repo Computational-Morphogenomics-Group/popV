@@ -12,9 +12,7 @@ from anndata import AnnData
 from scipy.sparse import csr_matrix
 
 
-def get_minified_adata(
-    adata,
-) -> AnnData:
+def get_minified_adata(adata, ) -> AnnData:
     """Return a minified AnnData.
 
     Parameters
@@ -52,7 +50,9 @@ def create_ontology_nlp_emb(lbl2sent, output_path):
     sentence_embeddings = model.encode(sentences)
 
     sent2vec = {}
-    for label, embedding in zip(lbl2sent.keys(), sentence_embeddings, strict=True):
+    for label, embedding in zip(lbl2sent.keys(),
+                                sentence_embeddings,
+                                strict=True):
         sent2vec[label] = embedding
 
     output_file = os.path.join(output_path, "cl.ontology.nlp.emb")
@@ -85,29 +85,39 @@ def create_ontology_resources(cl_obo_file):
         graph = json.load(f)["graphs"][0]
     output_path = Path(cl_obo_file).parent
     popv_dict = {}
-    popv_dict["nodes"] = [entry for entry in graph["nodes"] if entry["type"] == "CLASS" and entry.get("lbl", False)]
+    popv_dict["nodes"] = [
+        entry for entry in graph["nodes"]
+        if entry["type"] == "CLASS" and entry.get("lbl", False)
+    ]
     popv_dict["lbl_sentence"] = {
-        entry[
-            "lbl"
-        ]: f"{entry['lbl']}: {entry.get('meta', {}).get('definition', {}).get('val', '')} {' '.join(entry.get('meta', {}).get('comments', []))}"
+        entry["lbl"]:
+        f"{entry['lbl']}: {entry.get('meta', {}).get('definition', {}).get('val', '')} {' '.join(entry.get('meta', {}).get('comments', []))}"
         for entry in popv_dict["nodes"]
     }
-    popv_dict["id_2_lbl"] = {entry["id"]: entry["lbl"] for entry in popv_dict["nodes"]}
-    popv_dict["lbl_2_id"] = {entry["lbl"]: entry["id"] for entry in popv_dict["nodes"]}
+    popv_dict["id_2_lbl"] = {
+        entry["id"]: entry["lbl"]
+        for entry in popv_dict["nodes"]
+    }
+    popv_dict["lbl_2_id"] = {
+        entry["lbl"]: entry["id"]
+        for entry in popv_dict["nodes"]
+    }
     popv_dict["edges"] = [
-        i
-        for i in graph["edges"]
-        if i["sub"].split("/")[-1][0:2] == "CL" and i["obj"].split("/")[-1][0:2] == "CL" and i["pred"] == "is_a"
+        i for i in graph["edges"] if i["sub"].split("/")[-1][0:2] == "CL"
+        and i["obj"].split("/")[-1][0:2] == "CL" and i["pred"] == "is_a"
     ]
-    popv_dict["ct_edges"] = [
-        [popv_dict["id_2_lbl"][i["sub"]], popv_dict["id_2_lbl"][i["obj"]]] for i in popv_dict["edges"]
-    ]
+    popv_dict["ct_edges"] = [[
+        popv_dict["id_2_lbl"][i["sub"]], popv_dict["id_2_lbl"][i["obj"]]
+    ] for i in popv_dict["edges"]]
     create_ontology_nlp_emb(popv_dict["lbl_sentence"], output_path)
 
     with open(f"{output_path}/cl_popv.json", "w") as f:
         json.dump(popv_dict, f, indent=4)
     children_edge_celltype_df = pd.DataFrame(popv_dict["ct_edges"])
-    children_edge_celltype_df.to_csv(f"{output_path}/cl.ontology", sep="\t", header=False, index=False)
+    children_edge_celltype_df.to_csv(f"{output_path}/cl.ontology",
+                                     sep="\t",
+                                     header=False,
+                                     index=False)
 
 
 def subsample_dataset(
@@ -152,7 +162,9 @@ def subsample_dataset(
         if labels_counts[label] < n_samples_per_label:
             sample_idx.append(label_locs)
         else:
-            label_subset = np.random.choice(label_locs, n_samples_per_label, replace=False)
+            label_subset = np.random.choice(label_locs,
+                                            n_samples_per_label,
+                                            replace=False)
             sample_idx.append(label_subset)
     sample_idx = np.concatenate(sample_idx)
     return adata.obs_names[sample_idx]
@@ -179,10 +191,13 @@ def check_genes_is_subset(ref_genes, query_genes):
         logging.warning("Genes in query_dataset are not unique.")
 
     if set(ref_genes).issubset(set(query_genes)):
-        logging.info("All ref genes are in query dataset. Can use pretrained models.")
+        logging.info(
+            "All ref genes are in query dataset. Can use pretrained models.")
         is_subset = True
     else:
-        logging.info("Not all reference genes are in query dataset. Set 'prediction_mode' to 'retrain'.")
+        logging.info(
+            "Not all reference genes are in query dataset. Set 'prediction_mode' to 'retrain'."
+        )
         is_subset = False
     return is_subset
 
@@ -198,7 +213,8 @@ def make_batch_covariate(adata, batch_keys, new_batch_key):
     batch_keys
         List of keys in adat.obs corresponding to batches
     """
-    adata.obs[new_batch_key] = adata.obs[batch_keys].astype(str).sum(1).astype("category")
+    adata.obs[new_batch_key] = adata.obs[batch_keys].astype(str).sum(1).astype(
+        "category")
 
 
 def calculate_depths(g):
@@ -249,7 +265,9 @@ def make_ontology_dag(cl_obo_file, lowercase=False):
     g.add_edges_from(cell_ontology["ct_edges"])
 
     if not nx.is_directed_acyclic_graph(g):
-        raise ValueError(f"Graph is not a Directed Acyclic Graph. {nx.find_cycle(g, orientation='original')}")
+        raise ValueError(
+            f"Graph is not a Directed Acyclic Graph. {nx.find_cycle(g, orientation='original')}"
+        )
 
     if lowercase:
         mapping = {s: s.lower() for s in list(g.nodes)}
@@ -265,3 +283,8 @@ def majority_vote(x):
 def majority_count(x):
     _, b = np.unique(x, return_counts=True)
     return np.max(b)
+
+
+def likelihood_weighted_vote(x, probs):
+    likelihood_weights_preds = x * probs
+    return majority_vote(likelihood_weights_preds)
