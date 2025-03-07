@@ -285,6 +285,32 @@ def majority_count(x):
     return np.max(b)
 
 
-def likelihood_weighted_vote(x, probs):
-    likelihood_weights_preds = x * probs
-    return majority_vote(likelihood_weights_preds)
+def likelihood_weighted_vote(predictions, probabilities):
+    """
+    Compute weighted majority vote based on prediction probabilities.
+    
+    Parameters
+    ----------
+    predictions : array-like
+        Array of predictions from different methods
+    probabilities : array-like
+        Array of corresponding probability scores
+        
+    Returns
+    -------
+    str
+        The prediction with highest weighted vote
+    """
+    # Create a dictionary to store weighted votes for each unique prediction
+    weighted_votes = {}
+    
+    for pred, prob in zip(predictions, probabilities):
+        if pd.isna(pred) or pd.isna(prob):
+            continue
+        weighted_votes[pred] = weighted_votes.get(pred, 0) + prob
+    
+    if not weighted_votes:
+        return np.nan
+        
+    # Return the prediction with highest weighted vote
+    return max(weighted_votes.items(), key=lambda x: x[1])[0]

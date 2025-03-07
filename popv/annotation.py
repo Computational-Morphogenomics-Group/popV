@@ -54,7 +54,7 @@ def annotate_data(adata: anndata.AnnData,
                   methods: list | None = None,
                   save_path: str | None = None,
                   methods_kwargs: dict | None = None,
-                  weight_likelihoods: bool | None = False) -> None:
+                  weight_likelihood: bool | None = False) -> None:
     """
     Annotate an AnnData dataset preprocessed by :class:`popv.preprocessing.Process_Query` by using the annotation pipeline.
 
@@ -111,7 +111,7 @@ def annotate_data(adata: anndata.AnnData,
     adata.uns["prediction_keys_seen"] = all_prediction_keys_seen
     adata.uns["methods"] = list(methods)
     adata.uns["method_kwargs"] = methods_kwargs
-    compute_consensus(adata, all_prediction_keys_seen, weight_likelihoods)
+    compute_consensus(adata, all_prediction_keys_seen, weight_likelihood)
     # No ontology prediction if ontology is set to False.
     if adata.uns["_cl_obo_file"] is False:
         adata.obs[["popv_prediction", "popv_prediction_score"]] = adata.obs[[
@@ -139,7 +139,7 @@ def annotate_data(adata: anndata.AnnData,
 
 def compute_consensus(adata: anndata.AnnData,
                       prediction_keys: list,
-                      weight_likelihoods: bool = False) -> None:
+                      weight_likelihood: bool = False) -> None:
     """
     Compute consensus prediction and statistics between all methods.
 
@@ -160,16 +160,20 @@ def compute_consensus(adata: anndata.AnnData,
         _utils.majority_vote, axis=1)
     adata.obs["popv_majority_vote_prediction"] = consensus_prediction
 
-    if weight_likelihoods:
-        prediction_keys_probs = [
-            key + '_probabilities' for key in prediction_keys
-        ]
-
-        likelihood_weighted_prediction = adata.obs[[
-            prediction_keys, prediction_keys_probs
-        ]].apply(_utils.likelihood_weighted_vote, axis=1)
-        adata.obs[
-            "likelihood_weighted_vote_prediction"] = likelihood_weighted_prediction
+    if weight_likelihood:
+        prediction_keys_probs = [key + '_probabilities' for key in prediction_keys]
+        
+        # Split predictions and probabilities into separate DataFrames
+        predictions = adata.obs[prediction_keys]
+        probabilities = adata.obs[prediction_keys_probs]
+        
+        # Apply likelihood weighted voting using both predictions and probabilities
+        likelihood_weighted_prediction = pd.Series(
+            [_utils.likelihood_weighted_vote(row[0], row[1]) 
+             for row in zip(predictions.values, probabilities.values)],
+            index=predictions.index
+        )
+        adata.obs["likelihood_weighted_vote_prediction"] = likelihood_weighted_prediction
 
     agreement = adata.obs[prediction_keys].apply(_utils.majority_count, axis=1)
     adata.obs["popv_majority_vote_score"] = agreement.values
